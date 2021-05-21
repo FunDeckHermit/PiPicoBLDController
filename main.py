@@ -19,7 +19,7 @@ tim = Timer()
 def tick(timer):
     global led
     led.toggle()
-    print(tempcount)
+    print(read_vbat_mV())
 
 #Zes flanken per rotatie
 def calc_spd(pin):
@@ -35,6 +35,10 @@ def calc_temp(pin):
     global tempcount
     tempcount += 1
 
+#Bereken de batterijspanning in mV
+def read_vbat_mV():
+    x = vbat.read_u16()
+    return x * 88623 / 100000
     
 ena.value(True)
 tim.init(freq=1, mode=Timer.PERIODIC, callback=tick)
