@@ -10,23 +10,27 @@ ena.value(True)
 @rp2.asm_pio(sideset_init=rp2.PIO.OUT_LOW)
 def follow():
     label("start")
-    pull()
-    mov(x, osr)                  # x = timeout
     mov(y, invert(null))         # start with the value 0xFFFFFFFF
     
-    label("loop")                # Loops every "normal" Period
-    jmp(y_dec,"go")              # Just y--
-    jmp("start")                 # Re-arm the system if y ever happends to be 0
-    label("go") 
-    wait(0, pin, 0)     # Wait for pin to go low
+    label("start_time_counter")  # set time_counter to 10011 << 17
+    set(x, 19) 
+    mov(isr, x)                  # x = timeout
+    in_(null, 17)
+    mov(x, isr)
     
-    label("waitforhigh")   
-    jmp(pin,"loop")  .side(1)             # Low to high transition, no timout    
-    jmp(x_dec,"waitforhigh")              # jump if x nonzero
-
-    label("timeout")             # Not needed but I like it to be explicit
-    mov(isr, invert(y)) .side(0) # move the value ~y to the ISR: the pulse count               
-    push()
+    label("test")                # test if there is a pulse (a 1 on the pin)
+    jmp(pin,"during_pulse")      # 
+    jmp(y_dec,"test")            # no pulse is currently observed: decrement time_counter and test again
+    
+    mov(isr, invert(y))          # time_counter has reached 0: a pause has happened, place the pulse counter in the Rx FIFO
+    push(noblock) 
+    
+    label("during_pulse")        # a pulse is in progress, wait till the pulse is over
+    wait(0, pin, 0)              # Wait for pin to go low
+    jmp(y_dec,"during_pulse2")   # assume y never reaches 0
+      
+    label("during_pulse2")    
+    jmp("start_time_counter")    # restart the time counter
 
     
 sm0 = rp2.StateMachine(0, follow, in_base=Pin(22), sideset_base=Pin(25), jmp_pin=Pin(22))
